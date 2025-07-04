@@ -42,8 +42,14 @@ $(GuidPatchTargetAssemblyReferences)
 
     <PropertyGroup>
       <CsWinRTIIDOptimizerResponseFile>$(IIDOptimizerInterimDir)cswinrt_iidoptimizer.rsp</CsWinRTIIDOptimizerResponseFile>
-	    <CsWinRTIIDOptimizerCommand>"$(CsWinRTIIDOptimizerPath)IIDOptimizer.exe" %40"$(CsWinRTIIDOptimizerResponseFile)"</CsWinRTIIDOptimizerCommand>
+      <CsWinRTIIDOptimizerDoneFile>$(IIDOptimizerInterimDir)cswinrt_iidoptimizer.complete</CsWinRTIIDOptimizerDoneFile>
+      <CsWinRTIIDOptimizerCommand>"$(CsWinRTIIDOptimizerPath)IIDOptimizer.exe" %40"$(CsWinRTIIDOptimizerResponseFile)"</CsWinRTIIDOptimizerCommand>
+      <CsWinRTIIDOptimizerOutputDir>$([System.IO.Directory]::GetParent($(CsWinRTIIDOptimizerTargetAssembly))) </CsWinRTIIDOptimizerOutputDir>
     </PropertyGroup>
+    <ItemGroup>
+      <CsWinRTGuidPatchedFiles Include="$(IIDOptimizerInterimDir)$(AssemblyName).dll" />
+      <CsWinRTGuidPatchedFiles Include="$(IIDOptimizerInterimDir)$(AssemblyName).pdb" />
+    </ItemGroup>
 
     <WriteLinesToFile File="$(CsWinRTIIDOptimizerResponseFile)" Lines="$(GuidPatchParams)" Overwrite="true" WriteOnlyWhenDifferent="true" />
   </Target>
@@ -52,37 +58,15 @@ $(GuidPatchTargetAssemblyReferences)
   <Target Name="CsWinRTInvokeGuidPatcher" 
           Condition="'$(DesignTimeBuild)' == ''"
           AfterTargets="Compile" 
-          BeforeTargets="Link" 
+          BeforeTargets="Link"
+          Inputs="$(CsWinRTIIDOptimizerResponseFile)"
+          Outputs="$(CsWinRTIIDOptimizerDoneFile)"
           DependsOnTargets="CsWinRTGenerateIIDOptimizerResponseFile">  
     
     <Message Text="$(CsWinRTIIDOptimizerCommand)" Importance="$(CsWinRTMessageImportance)" />
- 
-   <Exec Command="$(CsWinRTIIDOptimizerCommand)" ConsoleToMsBuild="true" IgnoreExitCode="true">
-      <Output TaskParameter="ConsoleOutput" PropertyName="CsWinRTGuidPatchOutput" />
-      <Output TaskParameter="ExitCode" PropertyName="CsWinRTGuidPatchExitCode"/>
-    </Exec>
-  
-  </Target>
-
-  <!-- When the IIDOptimizer succeeds, replace the input .dll with the patched version -->
-  <Target Name="CsWinRTReplaceForPatchedRuntime" 
-          Condition="$(CsWinRTGuidPatchExitCode) == 0"
-          AfterTargets="CsWinRTInvokeGuidPatcher"
-          BeforeTargets="Link"
-          DependsOnTargets="CsWinRTInvokeGuidPatcher">
-
-    <ItemGroup>
-      <CsWinRTGuidPatchedFiles Include="$(IIDOptimizerInterimDir)$(AssemblyName).dll;$(IIDOptimizerInterimDir)$(AssemblyName).pdb" />
-    </ItemGroup>
-
-    <PropertyGroup>
-      <!-- Use the above .dll to find the directory we should copy to when we finish (usually "obj")-->
-      <CsWinRTIIDOptimizerOutputDir>$([System.IO.Directory]::GetParent($(CsWinRTIIDOptimizerTargetAssembly))) </CsWinRTIIDOptimizerOutputDir>
-    </PropertyGroup>
-
-    <!--  Replace the .dll in the output folder with the optimized version we just made -->
+    <Exec Command="$(CsWinRTIIDOptimizerCommand)" ConsoleToMsBuild="true" IgnoreExitCode="true"/>
     <Copy SourceFiles="@(CsWinRTGuidPatchedFiles)" DestinationFolder="$(CsWinRTIIDOptimizerOutputDir)" />
+    <WriteLinesToFile File="$(CsWinRTIIDOptimizerDoneFile)" Lines="true" Overwrite="true" />  
   </Target>
-
 
 </Project>
